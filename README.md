@@ -1,2 +1,2 @@
-# tmparch
-Part of the tmplinux suite. Temporary Arch Linux.
+# tmpgentoo
+Part of the tmplinux suite. Temporary Gentoo.
