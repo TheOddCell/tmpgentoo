@@ -1,0 +1,28 @@
+#!/bin/bash
+set -e
+((EUID==0)) || { echo "run as root"; exit 1; }
+
+COPY="/var/lib/tmplinux/tmpgentoo"
+SFS="/var/lib/tmplinux/tmpgentoo.sfs"
+TMP=$(mktemp -d /tmp/container-XXXX)
+trap 'rm -rf "$TMP"' EXIT
+
+rm /var/lib/tmp*.sfs 2>/dev/null||true # removing all tmp* from before unification into tmplinux
+[[ -f $SFS ]] || {
+  mkdir -p "$COPY"
+  STAGE3=$(curl -s https://distfiles.gentoo.org/releases/amd64/autobuilds/current-stage3-amd64-desktop-systemd/ \
+   | grep -o '"stage3-amd64-desktop-systemd.*\.tar\.xz"' \
+   | sed 's/^.\(.*\).$/\1/')
+  tput smcup
+  curl -sL "https://distfiles.gentoo.org/releases/amd64/autobuilds//current-stage3-amd64-desktop-systemd/$STAGE3" \
+   | tar --use-compress-program="xz -T0 -d" -xvf - -C "$COPY"
+  tput rmcup
+  passwd --root "$COPY" -d root
+  mksquashfs "$COPY" "$SFS" -comp zstd
+  rm -rf "$COPY"
+}
+
+unsquashfs -f -d "$TMP" "$SFS"
+basename "$TMP" > /run/tmpgentoo
+systemd-nspawn -D "$TMP" --boot -E TERM=linux
+rm /run/tmpgentoo
